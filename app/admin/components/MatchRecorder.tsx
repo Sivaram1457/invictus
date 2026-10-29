@@ -89,6 +89,7 @@ export default function MatchRecorder({ players, matches, activeSeason, onRefres
           home_score: Number(matchData.homeScore),
           away_score: Number(matchData.awayScore),
           competition_type: matchData.competitionType,
+          season_id: activeSeason.id,
         },
       ]);
 

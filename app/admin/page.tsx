@@ -19,7 +19,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   
   // UI State
-  const [activeTab, setActiveTab] = useState<'matches' | 'competitions' | 'players' | 'teams' | 'seasons' | 'ucl'>('ucl');
+  const [activeTab, setActiveTab] = useState<'matches' | 'competitions' | 'players' | 'teams' | 'seasons' | 'ucl' | 'weekly'>('ucl');
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Global Data State
@@ -125,6 +125,14 @@ export default function AdminDashboard() {
           <Sparkles className="w-4 h-4" /> Real UCL Tournament Engine
         </button>
         <button
+          onClick={() => setActiveTab('weekly')}
+          className={`px-4 py-2.5 rounded-lg text-xs font-extrabold flex items-center gap-2 transition ${
+            activeTab === 'weekly' ? 'bg-[#d4af37] text-black shadow-lg shadow-[#d4af37]/20' : 'bg-[#12141c] text-gray-400 hover:text-white border border-gray-800'
+          }`}
+        >
+          <Calendar className="w-4 h-4" /> Weekly Tournament
+        </button>
+        <button
           onClick={() => setActiveTab('matches')}
           className={`px-4 py-2.5 rounded-lg text-xs font-extrabold flex items-center gap-2 transition ${
             activeTab === 'matches' ? 'bg-[#d4af37] text-black shadow-lg shadow-[#d4af37]/20' : 'bg-[#12141c] text-gray-400 hover:text-white border border-gray-800'
@@ -169,6 +177,10 @@ export default function AdminDashboard() {
       {/* DYNAMIC COMPONENT RENDERING */}
       {activeTab === 'ucl' && (
         <UCLTournamentEngine players={players} matches={matches} activeSeason={activeSeason} onRefresh={fetchAllData} showToast={showToast} />
+      )}
+
+      {activeTab === 'weekly' && (
+        <UCLTournamentEngine competitionType="WEEKLY" players={players} matches={matches} activeSeason={activeSeason} onRefresh={fetchAllData} showToast={showToast} />
       )}
 
       {activeTab === 'matches' && (

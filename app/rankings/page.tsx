@@ -35,6 +35,7 @@ interface Match {
   away_score: number;
   competition_type?: string;
   season_id?: string;
+  created_at?: string;
 }
 
 interface Standing {
@@ -94,11 +95,14 @@ export default function RankingsPage() {
 
   const standings = (() => {
     const stats: Record<string, Standing> = {};
+    const weeklyCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
     const competitionMatches = filterMatchesBySeason(matches, selectedSeasonId).filter((match) => {
       const matchesCompetition = (match.competition_type || 'LEAGUE').toUpperCase() === selectedCompetition;
       const isUclGroupMatch = selectedCompetition !== 'UCL'
         || match.home_player_id.includes(`(${selectedUclGroup})`);
-      return matchesCompetition && isUclGroupMatch;
+      const isCurrentWeeklyMatch = selectedCompetition !== 'WEEKLY'
+        || Boolean(match.created_at && new Date(match.created_at).getTime() >= weeklyCutoff);
+      return matchesCompetition && isUclGroupMatch && isCurrentWeeklyMatch;
     });
 
     const ensure = (name: string) => {

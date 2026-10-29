@@ -5,12 +5,13 @@ import { Sparkles, Shield, Swords, Crown, LayoutGrid, Trash2, CheckSquare } from
 import { supabase } from '@/lib/supabase';
 import { Match, Player, Season } from '../types';
 
-interface UCLProps {
+interface TournamentProps {
   players: Player[];
   matches: Match[];
   activeSeason: Season | null;
   onRefresh: () => void;
   showToast: (type: 'success' | 'error', msg: string) => void;
+  competitionType?: 'UCL' | 'WEEKLY';
 }
 
 interface GroupStanding {
@@ -31,7 +32,11 @@ const getPairKey = (home: string, away: string) => [stripStageTag(home), stripSt
   .sort((a, b) => a.localeCompare(b))
   .join('::');
 
-export const generateSingleRoundRobinFixtures = (groupPlayers: Player[], groupTag: string) => {
+export const generateSingleRoundRobinFixtures = (
+  groupPlayers: Player[],
+  groupTag: string,
+  competitionType: 'UCL' | 'WEEKLY' = 'UCL',
+) => {
   const fixtures: Array<{
     home_player_id: string;
     away_player_id: string;
@@ -47,7 +52,7 @@ export const generateSingleRoundRobinFixtures = (groupPlayers: Player[], groupTa
         away_player_id: `${groupPlayers[awayIndex].name} (${groupTag})`,
         home_score: 0,
         away_score: 0,
-        competition_type: 'UCL',
+        competition_type: competitionType,
       });
     }
   }
@@ -94,21 +99,38 @@ const getNextKnockoutStage = (qualifiedCount: number) => {
 
 const getUclAwardKey = (seasonName: string) => `UCL | Season: ${seasonName}`;
 
-export default function UCLTournamentEngine({ players, matches, activeSeason, onRefresh, showToast }: UCLProps) {
+export default function UCLTournamentEngine({
+  players,
+  matches,
+  activeSeason,
+  onRefresh,
+  showToast,
+  competitionType = 'UCL',
+}: TournamentProps) {
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([]);
   const [participantCount, setParticipantCount] = useState<8 | 16 | 32>(8);
 
-  const uclMatches = matches.filter(m => m.competition_type === 'UCL');
-  const groupTags = getGroupTags(uclMatches);
+  const isWeekly = competitionType === 'WEEKLY';
+  const competitionLabel = isWeekly ? 'Weekly' : 'UCL';
+  const weeklyCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
+  const tournamentMatches = matches.filter((match) => {
+    if (match.competition_type !== competitionType) return false;
+    return !isWeekly || Boolean(match.created_at && new Date(match.created_at).getTime() >= weeklyCutoff);
+  });
+  const weeklyDeadline = isWeekly && tournamentMatches.length > 0
+    ? new Date(Math.min(...tournamentMatches.map((match) => new Date(match.created_at).getTime())) + 7 * 24 * 60 * 60 * 1000)
+    : null;
+  const groupTags = getGroupTags(tournamentMatches);
   const groupMatches = groupTags.map((groupTag) => ({
     groupTag,
-    matches: getUniqueGroupFixtures(uclMatches.filter((match) => match.home_player_id.includes(`(${groupTag})`))),
+    matches: getUniqueGroupFixtures(tournamentMatches.filter((match) => match.home_player_id.includes(`(${groupTag})`))),
   }));
   const knockoutStages = ['Round of 16', 'Quarter-Final', 'Semi-Final', 'Final'];
-  const activeKnockoutStage = [...knockoutStages].reverse().find((stage) => getStageMatches(uclMatches, stage).length > 0);
-  const activeKnockoutMatches = activeKnockoutStage ? getStageMatches(uclMatches, activeKnockoutStage) : [];
+  const activeKnockoutStage = [...knockoutStages].reverse().find((stage) => getStageMatches(tournamentMatches, stage).length > 0);
+  const activeKnockoutMatches = activeKnockoutStage ? getStageMatches(tournamentMatches, activeKnockoutStage) : [];
 
   const awardUclFinal = async (finalMatch: Match, homeScore: number, awayScore: number) => {
+    if (isWeekly) return;
     if (!supabase || homeScore === awayScore) {
       showToast('error', 'The UCL final must have a confirmed winner before trophies can be awarded.');
       return;
@@ -158,28 +180,28 @@ export default function UCLTournamentEngine({ players, matches, activeSeason, on
       setSelectedPlayerIds(selectedPlayerIds.filter(pid => pid !== id));
     } else {
       if (selectedPlayerIds.length >= participantCount) {
-        showToast('error', `You can only select ${participantCount} players for this UCL format.`);
+        showToast('error', `You can only select ${participantCount} players for this ${competitionLabel} format.`);
         return;
       }
       setSelectedPlayerIds([...selectedPlayerIds, id]);
     }
   };
 
-  const handleGenerateUCLTournament = async () => {
+  const handleGenerateTournament = async () => {
     if (selectedPlayerIds.length !== participantCount) {
       showToast('error', `You have selected ${selectedPlayerIds.length} players. Exactly ${participantCount} are required!`);
       return;
     }
 
-    if (!confirm('Generate the UCL group fixtures for the selected participants? Existing UCL history will be preserved. Continue?')) return;
+    if (!confirm(`Generate the ${competitionLabel} group fixtures for the selected participants? Existing history will be preserved. Continue?`)) return;
     if (!supabase) return;
     if (!activeSeason) {
-      showToast('error', 'Create or activate a season before generating UCL fixtures.');
+      showToast('error', `Create or activate a season before generating ${competitionLabel} fixtures.`);
       return;
     }
 
-    if (uclMatches.length > 0) {
-      showToast('error', 'An active UCL tournament already exists. Complete or archive it before starting another one.');
+    if (tournamentMatches.length > 0) {
+      showToast('error', `An active ${competitionLabel} tournament already exists. Complete or reset it before starting another one.`);
       return;
     }
 
@@ -187,20 +209,20 @@ export default function UCLTournamentEngine({ players, matches, activeSeason, on
     const shuffled = [...selectedPlayers].sort(() => 0.5 - Math.random());
     const fixturesToInsert = Array.from({ length: participantCount / 4 }, (_, groupIndex) => {
       const groupPlayers = shuffled.slice(groupIndex * 4, groupIndex * 4 + 4);
-      return generateSingleRoundRobinFixtures(groupPlayers, `Group ${String.fromCharCode(65 + groupIndex)}`);
+      return generateSingleRoundRobinFixtures(groupPlayers, `Group ${String.fromCharCode(65 + groupIndex)}`, competitionType);
     }).flat().map((fixture) => ({ ...fixture, season_id: activeSeason.id }));
 
     const { error } = await supabase.from('matches').insert(fixturesToInsert);
     if (error) showToast('error', error.message);
     else {
-      showToast('success', `${participantCount} players placed into ${participantCount / 4} UCL groups with single round-robin fixtures.`);
+      showToast('success', `${participantCount} players placed into ${participantCount / 4} ${competitionLabel} groups with single round-robin fixtures.`);
       setSelectedPlayerIds([]);
       onRefresh();
     }
   };
 
   const calculateGroupStandings = (groupTag: string, currentMatches: Match[]): GroupStanding[] => {
-    const groupMatches = getUniqueGroupFixtures(currentMatches.filter(m => m.competition_type === 'UCL' && m.home_player_id.includes(`(${groupTag})`)));
+    const groupMatches = getUniqueGroupFixtures(currentMatches.filter(m => m.competition_type === competitionType && m.home_player_id.includes(`(${groupTag})`)));
     const stats: Record<string, GroupStanding> = {};
 
     groupMatches.forEach(m => {
@@ -243,7 +265,11 @@ export default function UCLTournamentEngine({ players, matches, activeSeason, on
 
   const checkAndAutoGenerateKnockouts = async (updatedMatches: Match[]) => {
     if (!supabase || !activeSeason) return;
-    const currentUclList = updatedMatches.filter((match) => match.competition_type === 'UCL' && match.season_id === activeSeason.id);
+    const currentUclList = updatedMatches.filter((match) =>
+      match.competition_type === competitionType
+      && match.season_id === activeSeason.id
+      && (!isWeekly || Boolean(match.created_at && new Date(match.created_at).getTime() >= weeklyCutoff)),
+    );
     const currentGroupTags = getGroupTags(currentUclList);
     const currentGroups = currentGroupTags.flatMap((groupTag) => getUniqueGroupFixtures(currentUclList.filter((match) => match.home_player_id.includes(`(${groupTag})`))));
     const currentStageIndex = knockoutStages.findIndex((stage) => getStageMatches(currentUclList, stage).length > 0);
@@ -266,8 +292,8 @@ export default function UCLTournamentEngine({ players, matches, activeSeason, on
         const firstGroupRunnerUp = qualifiers[index + 1];
         if (!firstGroupWinner || !nextGroupRunnerUp || !nextGroupWinner || !firstGroupRunnerUp) continue;
         knockoutFixtures.push(
-          { home_player_id: `${firstGroupWinner} (${nextStage})`, away_player_id: `${nextGroupRunnerUp} (${nextStage})`, home_score: 0, away_score: 0, competition_type: 'UCL', season_id: activeSeason.id },
-          { home_player_id: `${nextGroupWinner} (${nextStage})`, away_player_id: `${firstGroupRunnerUp} (${nextStage})`, home_score: 0, away_score: 0, competition_type: 'UCL', season_id: activeSeason.id },
+          { home_player_id: `${firstGroupWinner} (${nextStage})`, away_player_id: `${nextGroupRunnerUp} (${nextStage})`, home_score: 0, away_score: 0, competition_type: competitionType, season_id: activeSeason.id },
+          { home_player_id: `${nextGroupWinner} (${nextStage})`, away_player_id: `${firstGroupRunnerUp} (${nextStage})`, home_score: 0, away_score: 0, competition_type: competitionType, season_id: activeSeason.id },
         );
       }
       if (knockoutFixtures.length > 0) await supabase.from('matches').insert(knockoutFixtures);
@@ -298,7 +324,7 @@ export default function UCLTournamentEngine({ players, matches, activeSeason, on
         away_player_id: `${winners[index + 1]} (${nextStage})`,
         home_score: 0,
         away_score: 0,
-        competition_type: 'UCL',
+        competition_type: competitionType,
         season_id: activeSeason.id,
       });
     }
@@ -312,6 +338,23 @@ export default function UCLTournamentEngine({ players, matches, activeSeason, on
   const handleDeleteMatch = async (matchId: string) => {
     if (!confirm('Delete this fixture?')) return;
     await supabase.from('matches').delete().eq('id', matchId);
+    onRefresh();
+  };
+
+  const handleResetWeeklyTournament = async () => {
+    if (!isWeekly || !supabase || tournamentMatches.length === 0) return;
+    if (!confirm('Reset the current Weekly Tournament? This removes only this week’s fixtures and results. Older weekly history will be preserved. Continue?')) return;
+
+    const { error } = await supabase
+      .from('matches')
+      .delete()
+      .in('id', tournamentMatches.map((match) => match.id));
+    if (error) {
+      showToast('error', `Weekly Tournament reset failed: ${error.message}`);
+      return;
+    }
+
+    showToast('success', 'Weekly Tournament reset. Start a new weekly round when ready.');
     onRefresh();
   };
 
@@ -390,7 +433,7 @@ export default function UCLTournamentEngine({ players, matches, activeSeason, on
               
               const { data: updatedMatchData } = await supabase.from('matches').select('*').eq('season_id', activeSeason?.id).order('created_at', { ascending: false });
               if (updatedMatchData) {
-                if (m.home_player_id.includes('(Final)')) await awardUclFinal(m, h, a);
+                if (!isWeekly && m.home_player_id.includes('(Final)')) await awardUclFinal(m, h, a);
                 await checkAndAutoGenerateKnockouts(updatedMatchData);
               }
               onRefresh();
@@ -412,20 +455,31 @@ export default function UCLTournamentEngine({ players, matches, activeSeason, on
       <div className="bg-gradient-to-br from-[#12141c] to-[#181a24] border border-amber-500/30 p-6 rounded-2xl flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6 shadow-2xl">
         <div>
           <h2 className="text-2xl font-black text-amber-400 uppercase tracking-widest flex items-center gap-3">
-            <Crown className="w-6 h-6 text-amber-400" /> UCL World-Cup Engine
+            <Crown className="w-6 h-6 text-amber-400" /> {isWeekly ? 'Weekly Tournament Engine' : 'UCL World-Cup Engine'}
           </h2>
           <p className="text-sm text-gray-400 mt-2 font-medium max-w-xl">
             Select 8, 16, or 32 participating players. Groups of four play a single round-robin, then the correct knockout stages unlock in order.
+            {isWeekly && ' This tournament is active for one week; an admin must confirm each reset.'}
           </p>
+          {weeklyDeadline && (
+            <p className="text-xs text-amber-400 mt-2">
+              Current weekly round ends {weeklyDeadline.toLocaleString()}.
+            </p>
+          )}
         </div>
+        {isWeekly && tournamentMatches.length > 0 && (
+          <button type="button" onClick={handleResetWeeklyTournament} className="px-4 py-3 bg-rose-950/60 hover:bg-rose-900/80 border border-rose-700/60 text-rose-200 font-black text-xs uppercase rounded-xl transition">
+            Reset Weekly Tournament
+          </button>
+        )}
       </div>
 
-      {uclMatches.length === 0 ? (
+      {tournamentMatches.length === 0 ? (
         <div className="bg-[#12141c] border border-gray-800 rounded-2xl p-6 shadow-xl space-y-4">
           <div className="flex justify-between items-center border-b border-gray-800 pb-3">
             <div>
               <h3 className="text-lg font-black text-white uppercase flex items-center gap-2">
-                <CheckSquare className="w-5 h-5 text-[#d4af37]" /> Select UCL Participants
+                <CheckSquare className="w-5 h-5 text-[#d4af37]" /> Select {competitionLabel} Participants
               </h3>
               <p className="text-xs text-gray-500 mt-1">Participants are divided into groups of four.</p>
             </div>
@@ -462,11 +516,11 @@ export default function UCLTournamentEngine({ players, matches, activeSeason, on
           </div>
 
           <button 
-            onClick={handleGenerateUCLTournament} 
+            onClick={handleGenerateTournament}
             disabled={selectedPlayerIds.length !== participantCount}
             className="w-full py-4 mt-2 bg-amber-500 hover:bg-amber-400 disabled:bg-gray-800 disabled:text-gray-500 text-black font-black text-sm uppercase tracking-wider rounded-xl shadow-lg flex items-center justify-center gap-2 transition"
           >
-            <LayoutGrid className="w-5 h-5" /> Generate {participantCount} Player UCL
+            <LayoutGrid className="w-5 h-5" /> Generate {participantCount} Player {competitionLabel}
           </button>
         </div>
       ) : (
@@ -487,7 +541,7 @@ export default function UCLTournamentEngine({ players, matches, activeSeason, on
           {activeKnockoutMatches.length > 0 && (
             <div className="lg:col-span-2 bg-gradient-to-r from-amber-900/40 to-[#12141c] border border-amber-500 rounded-2xl p-6 shadow-2xl space-y-6">
               <h3 className="text-xl font-black text-amber-400 uppercase flex items-center gap-2 border-b border-amber-500/30 pb-4">
-                <Crown className="w-6 h-6 text-amber-400" /> UCL {activeKnockoutStage}
+                <Crown className="w-6 h-6 text-amber-400" /> {competitionLabel} {activeKnockoutStage}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {activeKnockoutMatches.map((match, index) => renderMatchCard(match, index, activeKnockoutStage || 'Knockout'))}

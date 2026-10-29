@@ -91,39 +91,51 @@ export default function Home() {
       <section className="relative rounded-3xl bg-gradient-to-r from-[#12141c] via-[#181a24] to-[#0b0c10] border border-[#d4af37]/30 p-8 md:p-12 overflow-hidden shadow-[0_0_50px_rgba(212,175,55,0.08)]">
         <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-[#d4af37]/10 rounded-full blur-3xl pointer-events-none" />
         
-        <div className="relative z-10 max-w-3xl space-y-6">
-          <div className="flex items-center gap-3">
-            {/* BRAND LOGO / SHIELD EMBLEM */}
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d4af37] to-[#aa7c11] flex items-center justify-center shadow-lg shadow-[#d4af37]/20 border border-[#f3e5ab]/40">
-              <Trophy className="w-5 h-5 text-black" />
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+          <div className="max-w-3xl space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#d4af37] to-[#aa7c11] flex items-center justify-center shadow-lg shadow-[#d4af37]/20 border border-[#f3e5ab]/40">
+                <Trophy className="w-5 h-5 text-black" />
+              </div>
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/30 text-[#d4af37] text-xs font-bold uppercase tracking-widest">
+                <Flame className="w-4 h-4 text-[#d4af37]" /> Official eFootball Competitive Hub
+              </div>
             </div>
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#d4af37]/10 border border-[#d4af37]/30 text-[#d4af37] text-xs font-bold uppercase tracking-widest">
-              <Flame className="w-4 h-4 text-[#d4af37]" /> Official eFootball Competitive Hub
+
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white leading-tight uppercase">
+              VICTORY IS <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4af37] via-[#f3e5ab] to-[#aa7c11]">INEVITABLE</span>
+            </h1>
+
+            <p className="text-sm md:text-base text-gray-300 font-medium leading-relaxed">
+              Welcome to <strong className="text-white">INVICTUS</strong> — the home of top-tier eFootball competition. Track official rankings, live Ballon d'Or MVP races, tournament fixtures, and player trophy cabinets in real time.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-4 pt-2">
+              <Link
+                href="/rankings"
+                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#aa7c11] hover:from-[#b59228] hover:to-[#8c650d] text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 transition shadow-lg shadow-[#d4af37]/20"
+              >
+                <Trophy className="w-4 h-4" /> View Leaderboard <ArrowRight className="w-4 h-4" />
+              </Link>
+
+              <Link
+                href="/hall-of-fame"
+                className="px-6 py-3.5 rounded-xl bg-[#181a24] hover:bg-[#202330] border border-[#d4af37]/40 text-amber-300 font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition shadow-sm"
+              >
+                <Crown className="w-4 h-4 text-[#d4af37]" /> Hall of Fame & Ballon d'Or
+              </Link>
             </div>
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white leading-tight uppercase">
-            VICTORY IS <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#d4af37] via-[#f3e5ab] to-[#aa7c11]">INEVITABLE</span>
-          </h1>
-
-          <p className="text-sm md:text-base text-gray-300 font-medium leading-relaxed">
-            Welcome to <strong className="text-white">INVICTUS</strong> — the home of top-tier eFootball competition. Track official rankings, live Ballon d'Or MVP races, tournament fixtures, and player trophy cabinets in real time.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-4 pt-2">
-            <Link
-              href="/rankings"
-              className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-[#d4af37] to-[#aa7c11] hover:from-[#b59228] hover:to-[#8c650d] text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 transition shadow-lg shadow-[#d4af37]/20"
-            >
-              <Trophy className="w-4 h-4" /> View Leaderboard <ArrowRight className="w-4 h-4" />
-            </Link>
-            
-            <Link
-              href="/hall-of-fame"
-              className="px-6 py-3.5 rounded-xl bg-[#181a24] hover:bg-[#202330] border border-[#d4af37]/40 text-amber-300 font-bold text-xs uppercase tracking-wider flex items-center gap-2 transition shadow-sm"
-            >
-              <Crown className="w-4 h-4 text-[#d4af37]" /> Hall of Fame & Ballon d'Or
-            </Link>
+          <div className="relative flex justify-center lg:justify-end shrink-0">
+            <Image
+              src="/logo.jpeg"
+              alt="Invictus eFootball logo"
+              width={280}
+              height={280}
+              priority
+              className="w-48 h-48 md:w-64 md:h-64 object-contain rounded-2xl shadow-[0_0_35px_rgba(212,175,55,0.18)]"
+            />
           </div>
         </div>
       </section>

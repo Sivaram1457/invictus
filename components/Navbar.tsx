@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import Image from 'next/image';
 import { 
   Trophy, 
   Swords, 
@@ -39,8 +40,14 @@ export default function Navbar() {
         
         {/* BRAND LOGO */}
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#d4af37] to-[#aa7c11] flex items-center justify-center text-black font-black text-sm shadow-md shadow-[#d4af37]/20 group-hover:scale-105 transition transform">
-            I
+          <div className="w-8 h-8 rounded-lg overflow-hidden bg-black border border-[#d4af37]/50 shadow-md shadow-[#d4af37]/20 group-hover:scale-105 transition transform">
+            <Image
+              src="/logo.jpeg"
+              alt="Invictus logo"
+              width={32}
+              height={32}
+              className="w-full h-full object-cover"
+            />
           </div>
           <span className="font-black text-lg text-white uppercase tracking-wider">
             INVICTUS <span className="text-[#d4af37]">eFootball</span>
